@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: 0;
+        overflow-y: hidden;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      #board {
+        cursor: pointer;
+      }
+      line,
+      path,
+      circle {
+        stroke-linecap: round;
+        stroke-dasharray: 850;
+        stroke-dashoffset: 850;
+        animation: draw 0.6s linear forwards;
+      }
+      line {
+        animation-duration: 1s;
+      }
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
+    <title>Tic Tac Toe</title>
+  </head>
+  <body>
+    <svg id="board"></svg>
+  </body>
+  <script>
+    let game = {};
+    let state = {};
+    const board = document.querySelector("#board");
+    const windowWidth = "100%";
+    const windowHeight = "100vh";
+    board.setAttribute("width", windowWidth);
+    board.setAttribute("height", windowHeight);
+    board.style.backgroundColor = "#121212";
+
+    const CROSS = "X";
+    const CIRCLE = "O";
+
+    function drawLine(x1, y1, x2, y2) {
+      const line = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "line"
+      );
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", "white");
+      line.setAttribute("stroke-width", game.strokeWidth);
+      board.appendChild(line);
+    }
+
+    function drawBoard() {
+      let w = board.clientWidth;
+      let h = board.clientHeight;
+      game.side = Math.min(w, h) / 1.2;
+      game.boxSide = game.side / 3;
+      game.cellPadding = game.boxSide / 6;
+      game.strokeWidth = game.boxSide / 19;
+      if (w > h) {
+        game.wBegin = (w - game.side) / 2;
+        game.hBegin = (h - game.side) / 2;
+        for (let i = 1; i <= 2; i++) {
+          drawLine(
+            game.wBegin + i * game.boxSide,
+            game.hBegin,
+            game.wBegin + i * game.boxSide,
+            game.hBegin + game.side
+          );
+          drawLine(
+            game.wBegin,
+            game.hBegin + i * game.boxSide,
+            game.wBegin + game.side,
+            game.hBegin + i * game.boxSide
+          );
+        }
+      } else {
+        game.wBegin = (w - game.side) / 2;
+        game.hBegin = (h - game.side) / 2;
+        for (let i = 1; i <= 2; i++) {
+          drawLine(
+            game.wBegin,
+            game.hBegin + i * game.boxSide,
+            game.wBegin + game.side,
+            game.hBegin + i * game.boxSide
+          );
+          drawLine(
+            game.wBegin + i * game.boxSide,
+            game.hBegin,
+            game.wBegin + i * game.boxSide,
+            game.hBegin + game.side
+          );
+        }
+      }
+    }
+
+    function drawCross(x, y) {
+      const cross = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path"
+      );
+      cross.setAttribute(
+        "d",
+        `M${game.wBegin + game.cellPadding + x * game.boxSide},${
+          game.hBegin + game.cellPadding + y * game.boxSide
+        } L${game.wBegin - game.cellPadding + (x + 1) * game.boxSide},${
+          game.hBegin - game.cellPadding + (y + 1) * game.boxSide
+        } M${game.wBegin + game.cellPadding + x * game.boxSide},${
+          game.hBegin - game.cellPadding + (y + 1) * game.boxSide
+        } L${game.wBegin - game.cellPadding + (x + 1) * game.boxSide},${
+          game.hBegin + game.cellPadding + y * game.boxSide
+        }`
+      );
+      cross.setAttribute("stroke", "white");
+      cross.setAttribute("stroke-width", game.strokeWidth);
+      board.appendChild(cross);
+    }
+
+    function drawCircle(x, y) {
+      const circle = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "circle"
+      );
+      circle.setAttribute("cx", game.wBegin + (x + 0.5) * game.boxSide);
+      circle.setAttribute("cy", game.hBegin + (y + 0.5) * game.boxSide);
+      circle.setAttribute("r", game.boxSide / 2 - game.cellPadding);
+      circle.setAttribute("stroke", "white");
+      circle.setAttribute("stroke-width", game.strokeWidth);
+      circle.setAttribute("fill", "none");
+      board.appendChild(circle);
+    }
+
+    function switchPlayer(player) {
+      if (player == CROSS) {
+        return CIRCLE;
+      } else {
+        return CROSS;
+      }
+    }
+
+    function isMoveValid(player, x, y) {
+      for (let move of state.moves) {
+        if (move.x == x && move.y == y) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function markCell(x, y) {
+      let player = [state.begin, switchPlayer(state.begin)][
+        state.moves.length % 2
+      ];
+      if (isMoveValid(player, x, y)) {
+        if (player == CROSS) {
+          drawCross(x, y);
+        } else {
+          drawCircle(x, y);
+        }
+        state.moves.push({ x, y });
+      }
+    }
+
+    function handleClick(e) {
+      const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
+      const y = Math.floor((e.clientY - game.hBegin) / game.boxSide);
+      if (x >= 0 && x <= 2 && y >= 0 && y <= 2) markCell(x, y);
+    }
+
+    function initGame() {
+      drawBoard();
+      board.addEventListener("click", handleClick);
+      state.begin = CIRCLE;
+      state.moves = [];
+    }
+
+    window.onload = initGame;
+  </script>
+</html>
