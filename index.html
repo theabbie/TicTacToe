@@ -14,6 +14,7 @@
       }
       #board {
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
       }
       line,
       path,
@@ -50,7 +51,7 @@
     const CROSS = "X";
     const CIRCLE = "O";
 
-    function drawLine(x1, y1, x2, y2) {
+    function drawLine(x1, y1, x2, y2, color) {
       const line = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "line"
@@ -59,7 +60,7 @@
       line.setAttribute("y1", y1);
       line.setAttribute("x2", x2);
       line.setAttribute("y2", y2);
-      line.setAttribute("stroke", "white");
+      line.setAttribute("stroke", color || "white");
       line.setAttribute("stroke-width", game.strokeWidth);
       board.appendChild(line);
     }
@@ -161,6 +162,38 @@
       return true;
     }
 
+    function drawWinnerLine(winner) {
+      switch (winner.type) {
+        case "row":
+          drawLine(
+            game.wBegin + game.boxSide / 2,
+            game.hBegin + (winner.y + 0.5) * game.boxSide,
+            game.wBegin + game.side - game.boxSide / 2,
+            game.hBegin + (winner.y + 0.5) * game.boxSide,
+            "red"
+          );
+          break;
+        case "col":
+          drawLine(
+            game.wBegin + (winner.x + 0.5) * game.boxSide,
+            game.hBegin + game.boxSide / 2,
+            game.wBegin + (winner.x + 0.5) * game.boxSide,
+            game.hBegin + game.side - game.boxSide / 2,
+            "red"
+          );
+          break;
+        case "diag":
+          drawLine(
+            game.wBegin + game.boxSide / 2,
+            game.hBegin + game.boxSide / 2,
+            game.wBegin + game.side - game.boxSide / 2,
+            game.hBegin + game.side - game.boxSide / 2,
+            "red"
+          );
+          break;
+      }
+    }
+
     function markCell(x, y) {
       let player = [state.begin, switchPlayer(state.begin)][
         state.moves.length % 2
@@ -172,7 +205,102 @@
           drawCircle(x, y);
         }
         state.moves.push({ x, y });
+        drawWinnerLine(isPlayerWinning(player, getBoard()));
       }
+    }
+
+    function isPlayerWinning(player, gameBoard) {
+      for (let i = 0; i < 3; i++) {
+        if (
+          gameBoard[i][0] == player &&
+          gameBoard[i][1] == player &&
+          gameBoard[i][2] == player
+        ) {
+          return { type: "row", x: i };
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        if (
+          gameBoard[0][i] == player &&
+          gameBoard[1][i] == player &&
+          gameBoard[2][i] == player
+        ) {
+          return { type: "col", x: i };
+        }
+      }
+      if (
+        gameBoard[0][0] == player &&
+        gameBoard[1][1] == player &&
+        gameBoard[2][2] == player
+      ) {
+        return { type: "diag", x: 0 };
+      }
+      if (
+        gameBoard[0][2] == player &&
+        gameBoard[1][1] == player &&
+        gameBoard[2][0] == player
+      ) {
+        return { type: "diag", x: 1 };
+      }
+      return false;
+    }
+
+    function minimax(player, gameBoard) {
+      console.log(gameBoard);
+      empty = [];
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (!gameBoard[i][j]) {
+            empty.push({ x: i, y: j, score: -Infinity });
+          }
+        }
+      }
+      if (empty.length == 1) {
+        let newGameBoard = gameBoard.slice();
+        newGameBoard[empty[0].x][empty[0].y] = player;
+        if (isPlayerWinning(player, newGameBoard)) {
+          return { score: Infinity };
+        } else if (isPlayerWinning(switchPlayer(player), newGameBoard)) {
+          return { score: -Infinity };
+        } else {
+          return { score: 0 };
+        }
+      }
+      for (let cell in empty) {
+        let newGameBoard = gameBoard.slice();
+        newGameBoard[empty[cell].x][empty[cell].y] = player;
+        empty[cell].score = minimax(switchPlayer(player), newGameBoard).score;
+      }
+      let MaxCell = empty[0];
+      for (let cell in empty) {
+        if (empty[cell].score > MaxCell.score) {
+          MaxCell = empty[cell];
+        }
+      }
+      return MaxCell;
+    }
+
+    function getBoard() {
+      let gameBoard = [
+        [null, null, null],
+        [null, null, null],
+        [null, null, null],
+      ];
+      let player = state.begin;
+      for (let move of state.moves) {
+        gameBoard[move.y][move.x] = player;
+        player = switchPlayer(player);
+      }
+      return gameBoard;
+    }
+
+    function AI() {
+      let player = [state.begin, switchPlayer(state.begin)][
+        state.moves.length % 2
+      ];
+      gameBoard = getBoard();
+      let bestMove = minimax(player, gameBoard);
+      console.log(bestMove);
     }
 
     function handleClick(e) {
