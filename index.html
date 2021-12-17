@@ -167,9 +167,9 @@
         case "row":
           drawLine(
             game.wBegin + game.boxSide / 2,
-            game.hBegin + (winner.y + 0.5) * game.boxSide,
+            game.hBegin + (winner.x + 0.5) * game.boxSide,
             game.wBegin + game.side - game.boxSide / 2,
-            game.hBegin + (winner.y + 0.5) * game.boxSide,
+            game.hBegin + (winner.x + 0.5) * game.boxSide,
             "red"
           );
           break;
@@ -183,13 +183,24 @@
           );
           break;
         case "diag":
-          drawLine(
-            game.wBegin + game.boxSide / 2,
-            game.hBegin + game.boxSide / 2,
-            game.wBegin + game.side - game.boxSide / 2,
-            game.hBegin + game.side - game.boxSide / 2,
-            "red"
-          );
+          if (winner.x == 0) {
+            drawLine(
+              game.wBegin + game.boxSide / 2,
+              game.hBegin + game.boxSide / 2,
+              game.wBegin + game.side - game.boxSide / 2,
+              game.hBegin + game.side - game.boxSide / 2,
+              "red"
+            );
+          }
+          else {
+            drawLine(
+              game.wBegin + game.boxSide / 2,
+              game.hBegin + game.side - game.boxSide / 2,
+              game.wBegin + game.side - game.boxSide / 2,
+              game.hBegin + game.boxSide / 2,
+              "red"
+            );
+          }
           break;
       }
     }
