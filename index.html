@@ -12,6 +12,7 @@
       body {
         margin: 0;
         overflow-y: hidden;
+        background-color: #121212;
       }
       * {
         box-sizing: border-box;
@@ -33,7 +34,6 @@
         animation-duration: 1s;
       }
       text tspan {
-        font-size: 5.5em;
         fill: #fff;
         text-anchor: middle;
         fill: #121212;
@@ -99,16 +99,19 @@
         "http://www.w3.org/2000/svg",
         "text"
       );
-      let xpos, ypos;
+      let xpos, ypos, fontSize;
       if (game.w > game.h) {
         xpos = player == CROSS ? game.w / 10 : (game.w * 9) / 10;
         ypos = game.h / 2;
+        fontSize = "5.5em";
       } else {
         xpos = game.w / 2;
-        ypos = player == CROSS ? game.h / 9 : (game.h * 5) / 6;
+        ypos = player == CROSS ? game.h / 7 : (game.h * 6) / 7;
+        fontSize = "3.5em";
       }
       score = state.winners.filter((winner) => winner === player).length;
       scoreBoard.setAttribute("y", ypos);
+      scoreBoard.style.fontSize = fontSize;
       scoreBoard.innerHTML = `<tspan class="score" x=${xpos} dy="0">${score}</tspan><tspan class="score" x=${xpos} dy="0.6em">—</tspan><tspan x=${xpos} dy="0.7em">${player}</tspan>`;
       board.appendChild(scoreBoard);
     }
