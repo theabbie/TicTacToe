@@ -101,12 +101,12 @@
       );
       let xpos, ypos, fontSize;
       if (game.w > game.h) {
-        xpos = player == CROSS ? game.w / 10 : (game.w * 9) / 10;
+        xpos = player == CROSS ? (game.w - game.side) / 4 : (3 * game.w + game.side) / 4;
         ypos = game.h / 2;
         fontSize = "5.5em";
       } else {
         xpos = game.w / 2;
-        ypos = player == CROSS ? game.h / 7 : (game.h * 6) / 7;
+        ypos = player == CROSS ? (game.h - game.side) / 4 : (3 * game.h + game.side) / 4;
         fontSize = "3.5em";
       }
       score = state.winners.filter((winner) => winner === player).length;
