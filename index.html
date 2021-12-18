@@ -5,12 +5,17 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
+      @font-face {
+        font-family: Gilroy;
+        src: url("Gilroy.otf") format("opentype");
+      }
       body {
         margin: 0;
         overflow-y: hidden;
       }
       * {
         box-sizing: border-box;
+        font-family: Gilroy;
       }
       #board {
         cursor: pointer;
@@ -27,6 +32,14 @@
       line {
         animation-duration: 1s;
       }
+      text tspan {
+        font-size: 5.5em;
+        fill: #fff;
+        text-anchor: middle;
+        fill: #121212;
+        stroke: white;
+        stroke-width: 2px;
+      }
       @keyframes draw {
         to {
           stroke-dashoffset: 0;
@@ -41,6 +54,14 @@
   <script>
     let game = {};
     let state = {};
+    let throttle;
+    const wait = (fn, delay) =>
+      new Promise((resolve) =>
+        setTimeout(() => {
+          if (fn) fn();
+          resolve();
+        }, delay)
+      );
     const board = document.querySelector("#board");
     const windowWidth = "100%";
     const windowHeight = "100vh";
@@ -65,48 +86,69 @@
       board.appendChild(line);
     }
 
-    function drawBoard() {
-      let w = board.clientWidth;
-      let h = board.clientHeight;
-      game.side = Math.min(w, h) / 1.2;
+    async function drawMoves() {
+      let moves = state.moves.slice();
+      state.moves = [];
+      for (let move of moves) {
+        await wait(() => markCell(move.x, move.y), 100);
+      }
+    }
+
+    function drawScore(player) {
+      let scoreBoard = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "text"
+      );
+      let xpos, ypos;
+      if (game.w > game.h) {
+        xpos = player == CROSS ? game.w / 10 : (game.w * 9) / 10;
+        ypos = game.h / 2;
+      } else {
+        xpos = game.w / 2;
+        ypos = player == CROSS ? game.h / 9 : (game.h * 5) / 6;
+      }
+      score = state.winners.filter((winner) => winner === player).length;
+      scoreBoard.setAttribute("y", ypos);
+      scoreBoard.innerHTML = `<tspan class="score" x=${xpos} dy="0">${score}</tspan><tspan class="score" x=${xpos} dy="0.6em">—</tspan><tspan x=${xpos} dy="0.7em">${player}</tspan>`;
+      board.appendChild(scoreBoard);
+    }
+
+    async function drawBoard() {
+      board.querySelectorAll("*").forEach((el) => el.remove());
+      game.w = board.clientWidth;
+      game.h = board.clientHeight;
+      game.side = Math.min(game.w, game.h) / 1.2;
       game.boxSide = game.side / 3;
       game.cellPadding = game.boxSide / 6;
       game.strokeWidth = game.boxSide / 19;
-      if (w > h) {
-        game.wBegin = (w - game.side) / 2;
-        game.hBegin = (h - game.side) / 2;
-        for (let i = 1; i <= 2; i++) {
-          drawLine(
-            game.wBegin + i * game.boxSide,
-            game.hBegin,
-            game.wBegin + i * game.boxSide,
-            game.hBegin + game.side
-          );
-          drawLine(
-            game.wBegin,
-            game.hBegin + i * game.boxSide,
-            game.wBegin + game.side,
-            game.hBegin + i * game.boxSide
-          );
-        }
-      } else {
-        game.wBegin = (w - game.side) / 2;
-        game.hBegin = (h - game.side) / 2;
-        for (let i = 1; i <= 2; i++) {
-          drawLine(
-            game.wBegin,
-            game.hBegin + i * game.boxSide,
-            game.wBegin + game.side,
-            game.hBegin + i * game.boxSide
-          );
-          drawLine(
-            game.wBegin + i * game.boxSide,
-            game.hBegin,
-            game.wBegin + i * game.boxSide,
-            game.hBegin + game.side
-          );
-        }
+      game.wBegin = (game.w - game.side) / 2;
+      game.hBegin = (game.h - game.side) / 2;
+      drawScore(CROSS);
+      drawScore(CIRCLE);
+      for (let i = 1; i <= 2; i++) {
+        await wait(
+          () =>
+            drawLine(
+              game.wBegin,
+              game.hBegin + i * game.boxSide,
+              game.wBegin + game.side,
+              game.hBegin + i * game.boxSide
+            ),
+          250
+        );
+        await wait(
+          () =>
+            drawLine(
+              game.wBegin + i * game.boxSide,
+              game.hBegin,
+              game.wBegin + i * game.boxSide,
+              game.hBegin + game.side
+            ),
+          250
+        );
       }
+      await wait(null, 1000);
+      await drawMoves();
     }
 
     function drawCross(x, y) {
@@ -167,9 +209,9 @@
         case "row":
           drawLine(
             game.wBegin + game.boxSide / 2,
-            game.hBegin + (winner.x + 0.5) * game.boxSide,
+            game.hBegin + (winner.y + 0.5) * game.boxSide,
             game.wBegin + game.side - game.boxSide / 2,
-            game.hBegin + (winner.x + 0.5) * game.boxSide,
+            game.hBegin + (winner.y + 0.5) * game.boxSide,
             "red"
           );
           break;
@@ -183,23 +225,25 @@
           );
           break;
         case "diag":
-          if (winner.x == 0) {
-            drawLine(
-              game.wBegin + game.boxSide / 2,
-              game.hBegin + game.boxSide / 2,
-              game.wBegin + game.side - game.boxSide / 2,
-              game.hBegin + game.side - game.boxSide / 2,
-              "red"
-            );
-          }
-          else {
-            drawLine(
-              game.wBegin + game.boxSide / 2,
-              game.hBegin + game.side - game.boxSide / 2,
-              game.wBegin + game.side - game.boxSide / 2,
-              game.hBegin + game.boxSide / 2,
-              "red"
-            );
+          switch (winner.slope) {
+            case -1:
+              drawLine(
+                game.wBegin + game.boxSide / 2,
+                game.hBegin + game.boxSide / 2,
+                game.wBegin + game.side - game.boxSide / 2,
+                game.hBegin + game.side - game.boxSide / 2,
+                "red"
+              );
+              break;
+            case 1:
+              drawLine(
+                game.wBegin + game.boxSide / 2,
+                game.hBegin + game.side - game.boxSide / 2,
+                game.wBegin + game.side - game.boxSide / 2,
+                game.hBegin + game.boxSide / 2,
+                "red"
+              );
+              break;
           }
           break;
       }
@@ -216,7 +260,15 @@
           drawCircle(x, y);
         }
         state.moves.push({ x, y });
-        drawWinnerLine(isPlayerWinning(player, getBoard()));
+        let status = isPlayerWinning(player, getBoard());
+        if (status || state.moves.length == 9) {
+          if (status) {
+            drawWinnerLine(status);
+            state.winners.push(player);
+          }
+          state.moves = [];
+          setTimeout(drawBoard, 1000);
+        }
       }
     }
 
@@ -227,7 +279,7 @@
           gameBoard[i][1] == player &&
           gameBoard[i][2] == player
         ) {
-          return { type: "row", x: i };
+          return { type: "row", y: i };
         }
       }
       for (let i = 0; i < 3; i++) {
@@ -244,14 +296,14 @@
         gameBoard[1][1] == player &&
         gameBoard[2][2] == player
       ) {
-        return { type: "diag", x: 0 };
+        return { type: "diag", slope: -1 };
       }
       if (
         gameBoard[0][2] == player &&
         gameBoard[1][1] == player &&
         gameBoard[2][0] == player
       ) {
-        return { type: "diag", x: 1 };
+        return { type: "diag", slope: 1 };
       }
       return false;
     }
@@ -321,10 +373,17 @@
     }
 
     function initGame() {
-      drawBoard();
-      board.addEventListener("click", handleClick);
       state.begin = CIRCLE;
       state.moves = [];
+      state.winners = [];
+      drawBoard();
+      board.addEventListener("click", handleClick);
+      window.addEventListener("resize", () => {
+        clearTimeout(throttle);
+        throttle = setTimeout(() => {
+          drawBoard();
+        }, 100);
+      });
     }
 
     window.onload = initGame;
