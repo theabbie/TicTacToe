@@ -282,6 +282,13 @@
           }
           state.moves = [];
           setTimeout(drawBoard, 1000);
+        } else if (state.moves.length % 2 == 1) {
+          board.removeEventListener("click", handleClick);
+          wait(null, 500).then(() => {
+            let bestMove = AI();
+            markCell(bestMove.x, bestMove.y);
+            board.addEventListener("click", handleClick);
+          });
         }
       }
     }
@@ -336,39 +343,31 @@
       return false;
     }
 
-    function minimax(player, gameBoard) {
-      console.log(gameBoard);
-      empty = [];
-      for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          if (!gameBoard[i][j]) {
-            empty.push({ x: i, y: j, score: -Infinity });
-          }
-        }
-      }
-      if (empty.length == 1) {
-        let newGameBoard = gameBoard.slice();
-        newGameBoard[empty[0].x][empty[0].y] = player;
-        if (isPlayerWinning(player, newGameBoard)) {
-          return { score: Infinity };
-        } else if (isPlayerWinning(switchPlayer(player), newGameBoard)) {
+    function minimax(player, gameBoard, empty) {
+      if (empty.length == 0) {
+        if (isPlayerWinning(player, gameBoard)) {
           return { score: -Infinity };
+        } else if (isPlayerWinning(switchPlayer(player), gameBoard)) {
+          return { score: Infinity };
         } else {
           return { score: 0 };
         }
       }
+      let scores = JSON.parse(JSON.stringify(empty));
       for (let cell in empty) {
-        let newGameBoard = gameBoard.slice();
-        newGameBoard[empty[cell].x][empty[cell].y] = player;
-        empty[cell].score = minimax(switchPlayer(player), newGameBoard).score;
+        let newGameBoard = JSON.parse(JSON.stringify(gameBoard));
+        newGameBoard[empty[cell].y][empty[cell].x] = player;
+        scores[cell].score = minimax(
+          switchPlayer(player),
+          newGameBoard,
+          empty.filter((c, i) => cell != i)
+        ).score;
       }
-      let MaxCell = empty[0];
-      for (let cell in empty) {
-        if (empty[cell].score > MaxCell.score) {
-          MaxCell = empty[cell];
-        }
+      if (player == CROSS) {
+        return scores.reduce((a, b) => (a.score > b.score ? a : b));
+      } else {
+        return scores.reduce((a, b) => (a.score < b.score ? a : b));
       }
-      return MaxCell;
     }
 
     function getBoard() {
@@ -390,14 +389,25 @@
         state.moves.length % 2
       ];
       gameBoard = getBoard();
-      let bestMove = minimax(player, gameBoard);
+      empty = [];
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (!gameBoard[i][j]) {
+            empty.push({ x: j, y: i, score: -Infinity });
+          }
+        }
+      }
+      let bestMove = minimax(player, gameBoard, empty);
       console.log(bestMove);
+      return bestMove;
     }
 
     function handleClick(e) {
-      const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
       const y = Math.floor((e.clientY - game.hBegin) / game.boxSide);
-      if (x >= 0 && x <= 2 && y >= 0 && y <= 2) markCell(x, y);
+      const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
+      if (x >= 0 && x <= 2 && y >= 0 && y <= 2) {
+        markCell(x, y);
+      }
     }
 
     function initGame() {
