@@ -282,7 +282,7 @@
           }
           state.moves = [];
           setTimeout(drawBoard, 1000);
-        } else if (state.moves.length % 2 == 1) {
+        } else if (state.isAI && state.moves.length % 2 == 1) {
           board.removeEventListener("click", handleClick);
           wait(null, 500).then(() => {
             let bestMove = AI();
@@ -345,10 +345,10 @@
 
     function minimax(player, gameBoard, empty) {
       if (empty.length == 0) {
-        if (isPlayerWinning(player, gameBoard)) {
-          return { score: -Infinity };
-        } else if (isPlayerWinning(switchPlayer(player), gameBoard)) {
+        if (isPlayerWinning(CROSS, gameBoard)) {
           return { score: Infinity };
+        } else if (isPlayerWinning(CIRCLE, gameBoard)) {
+          return { score: -Infinity };
         } else {
           return { score: 0 };
         }
@@ -364,9 +364,9 @@
         ).score;
       }
       if (player == CROSS) {
-        return scores.reduce((a, b) => (a.score > b.score ? a : b));
+        return scores.reduce((a, b) => (a.score > b.score ? a : a.score < b.score ? b : Math.random() > 0.5 ? a : b));
       } else {
-        return scores.reduce((a, b) => (a.score < b.score ? a : b));
+        return scores.reduce((a, b) => (a.score < b.score ? a : a.score > b.score ? b : Math.random() > 0.5 ? a : b));
       }
     }
 
@@ -414,8 +414,14 @@
       state.begin = CROSS;
       state.moves = [];
       state.winners = [];
+      state.isAI = true;
       drawBoard();
       board.addEventListener("click", handleClick);
+      window.addEventListener("keydown", (e) => {
+        if (e.keyCode == 27) {
+          undo();
+        }
+      });
       window.addEventListener("resize", () => {
         clearTimeout(throttle);
         throttle = setTimeout(() => {
