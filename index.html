@@ -19,6 +19,7 @@
         font-family: Gilroy;
       }
       #board {
+        display: block;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
       }
@@ -90,9 +91,11 @@
     async function drawMoves() {
       let moves = state.moves.slice();
       state.moves = [];
+      state.replaying = true;
       for (let move of moves) {
         await wait(() => markCell(move.x, move.y), 100);
       }
+      state.replaying = false;
     }
 
     function drawScore(player) {
@@ -116,7 +119,18 @@
             : (3 * game.h + game.side) / 4;
         fontSize = "3.5em";
       }
-      score = state.winners.filter((winner) => winner === player).length;
+      let score = state.winners.filter((winner) => winner === player).length;
+      let bandStart =
+        player == CROSS ? 0 : game.w > game.h ? 0 : game.hBegin + game.side;
+      let bandEnd =
+        player == CROSS ? (game.w > game.h ? game.h : game.hBegin) : game.h;
+      let rootFontSize =
+        parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      fontSize =
+        Math.min(
+          parseFloat(fontSize) * rootFontSize,
+          (bandEnd - bandStart) / 3.35
+        ) + "px";
       scoreBoard.setAttribute("y", ypos);
       scoreBoard.style.fontSize = fontSize;
       scoreBoard.innerHTML = `<tspan class="score" x=${xpos} dy="0">${score}</tspan><tspan x=${xpos} dy="0.6em">—</tspan><tspan x=${xpos} dy="0.7em">${player}</tspan>`;
@@ -124,7 +138,23 @@
     }
 
     async function drawBoard() {
+      if (state.drawing) {
+        state.redrawPending = true;
+        return;
+      }
+      state.drawing = true;
+      do {
+        state.redrawPending = false;
+        await drawBoardOnce();
+      } while (state.redrawPending);
+      state.drawing = false;
+    }
+
+    async function drawBoardOnce() {
+      state.locked = true;
+      state.replaying = true;
       board.querySelectorAll("*").forEach((el) => el.remove());
+      moveEvents = [];
       game.w = board.clientWidth;
       game.h = board.clientHeight;
       game.side = Math.min(game.w, game.h) / 1.2;
@@ -161,6 +191,8 @@
       }
       await wait(null, 1000);
       await drawMoves();
+      state.locked = state.isAI && state.moves.length % 2 == 1;
+      state.replaying = false;
     }
 
     function drawCross(x, y) {
@@ -274,6 +306,9 @@
           drawCircle(x, y);
         }
         state.moves.push({ x, y });
+        if (state.replaying) {
+          return;
+        }
         let status = isPlayerWinning(player, getBoard());
         if (status || state.moves.length == 9) {
           if (status) {
@@ -281,12 +316,21 @@
             state.winners.push(player);
           }
           state.moves = [];
+          state.locked = true;
           setTimeout(drawBoard, 1000);
         } else if (state.isAI && state.moves.length % 2 == 1) {
           board.removeEventListener("click", handleClick);
-          wait(null, 500).then(() => {
+          state.locked = true;
+          wait(null, 500).then(function playAI() {
+            if (state.replaying) {
+              wait(null, 100).then(playAI);
+              return;
+            }
             let bestMove = AI();
             markCell(bestMove.x, bestMove.y);
+            if (state.moves.length > 0) {
+              state.locked = false;
+            }
             board.addEventListener("click", handleClick);
           });
         }
@@ -294,16 +338,16 @@
     }
 
     function undo() {
+      if (state.locked || state.replaying) {
+        return;
+      }
       if (state.moves.length > 0) {
-        let move = state.moves.pop();
-        let player = [state.begin, switchPlayer(state.begin)][
-          state.moves.length % 2
-        ];
-        let status = isPlayerWinning(player, getBoard());
-        if (status) {
-          state.winners.pop();
-        }
+        state.moves.pop();
         moveEvents.pop().remove();
+        if (state.isAI && state.moves.length % 2 == 1) {
+          state.moves.pop();
+          moveEvents.pop().remove();
+        }
       }
     }
 
@@ -344,14 +388,14 @@
     }
 
     function minimax(player, gameBoard, empty) {
+      if (isPlayerWinning(CROSS, gameBoard)) {
+        return { score: Infinity };
+      }
+      if (isPlayerWinning(CIRCLE, gameBoard)) {
+        return { score: -Infinity };
+      }
       if (empty.length == 0) {
-        if (isPlayerWinning(CROSS, gameBoard)) {
-          return { score: Infinity };
-        } else if (isPlayerWinning(CIRCLE, gameBoard)) {
-          return { score: -Infinity };
-        } else {
-          return { score: 0 };
-        }
+        return { score: 0 };
       }
       let scores = JSON.parse(JSON.stringify(empty));
       for (let cell in empty) {
@@ -388,8 +432,8 @@
       let player = [state.begin, switchPlayer(state.begin)][
         state.moves.length % 2
       ];
-      gameBoard = getBoard();
-      empty = [];
+      let gameBoard = getBoard();
+      let empty = [];
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
           if (!gameBoard[i][j]) {
@@ -403,6 +447,9 @@
     }
 
     function handleClick(e) {
+      if (state.locked || state.replaying) {
+        return;
+      }
       const y = Math.floor((e.clientY - game.hBegin) / game.boxSide);
       const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
       if (x >= 0 && x <= 2 && y >= 0 && y <= 2) {
